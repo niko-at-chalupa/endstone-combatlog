@@ -3,7 +3,7 @@ from pkginfo.commandline import Base
 from endstone import Player
 from sys import api_version
 from endstone.plugin import Plugin
-from endstone.event import event_handler, ActorDamageEvent, PlayerJoinEvent, PlayerQuitEvent, PlayerDeathEvent
+from endstone.event import event_handler, ActorDamageEvent, PlayerJoinEvent, PlayerQuitEvent, PlayerDeathEvent, PlayerSkinChangeEvent
 from endstone import ColorFormat as cf
 import math
 from pydantic import BaseModel
@@ -26,15 +26,15 @@ class CombatlogPlugin(Plugin):
 
         self._config = self._load_config()
 
-        self.players_in_combat: list[Player] = []
-        self.combat_timers: dict[Player, int] = {}
+        self.players_in_combat: list[str] = []
+        self.combat_timers: dict[str, int] = {}
         self.offenders: list[str] = [] # XUIDs, simpler
 
         self.server.scheduler.run_task(self, self.on_twenty_tick_interval, period=20)
 
         self.logger.info("If you want to reset the config, delete it and reload the plugin.")
 
-    def get_timer(self, player: Player) -> int:
+    def get_timer(self, player: str) -> int:
         timer = self.combat_timers.get(player)
         if not timer:
             self.combat_timers[player] = self.config.timer_ceiling
@@ -42,14 +42,27 @@ class CombatlogPlugin(Plugin):
         return timer
 
     def on_twenty_tick_interval(self):
-        for player in self.players_in_combat:
-            timer = self.get_timer(player)
+        # [:] has us looping in a copy rather than the list itself.
+        # Thank you to some youtbue short for teaching me this
+        for xuid in self.players_in_combat[:]:
+            timer = self.get_timer(xuid)
             timer -= 1
+            
             if timer <= 0:
-                self.players_in_combat.remove(player)
-                self.combat_timers.pop(player)
-                player.send_toast(self.config.messages.get("exit_combat_title", "exit combat message"), self.config.messages.get("exit_combat_description", "exit combat description"))
-
+                self.players_in_combat.remove(xuid)
+                self.combat_timers.pop(xuid, None)
+                player = None
+                for p in self.server.online_players:
+                    if p.xuid == xuid:
+                        player = p
+                        break
+                if player:
+                    player.send_toast(
+                        self.config.messages.get("exit_combat_title", "exit combat message"), 
+                        self.config.messages.get("exit_combat_description", "exit combat description")
+                    )
+            else:
+                self.combat_timers[xuid] = timer
 
     @event_handler
     def on_player_attack(self, event: ActorDamageEvent):
@@ -64,9 +77,9 @@ class CombatlogPlugin(Plugin):
 
         # Even if the player the attacker attacks dies instantly upon their hit, we still put
         # them in combat. They're participating in PvP, that's clear to us.
-        self.players_in_combat.append(attacker)
+        self.players_in_combat.append(attacker.xuid)
 
-        timer = self.get_timer(attacker)
+        timer = self.get_timer(attacker.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
 
     @property
@@ -83,8 +96,8 @@ class CombatlogPlugin(Plugin):
         self.drop_and_clear_inventory(player)
 
         self.offenders.append(player.xuid)
-        self.players_in_combat.remove(player)
-        self.combat_timers.pop(player)
+        self.players_in_combat.remove(player.xuid)
+        self.combat_timers.pop(player.xuid)
 
     def drop_and_clear_inventory(self, player: Player) -> None:
         inventory = player.inventory
