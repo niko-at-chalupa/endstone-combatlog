@@ -1,3 +1,4 @@
+import time
 from numpy import ceil
 from pkginfo.commandline import Base
 from endstone import Player
@@ -79,6 +80,7 @@ class CombatlogPlugin(Plugin):
 
         timer = self.get_timer(attacker.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
+        self.combat_timers[attacker.xuid] = timer
 
         # Do the same thing again, but for the player who got hit.
         if not player in self.players_in_combat:
@@ -88,6 +90,7 @@ class CombatlogPlugin(Plugin):
 
         timer = self.get_timer(player.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
+        self.combat_timers[attacker.xuid] = timer
 
     @property
     def config(self) -> CombatlogConfig:
