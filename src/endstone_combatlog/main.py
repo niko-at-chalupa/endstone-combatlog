@@ -63,9 +63,31 @@ class CombatlogPlugin(Plugin):
         
         player = event.player
 
+        self.drop_and_clear_inventory(player)
+
         self.offenders.append(player.xuid)
         self.players_in_combat.remove(player)
         self.combat_timers.pop(player)
+
+    def drop_and_clear_inventory(self, player: Player) -> None:
+        inventory = player.inventory
+        location = player.location
+
+        all_slots = list(inventory.contents or [])
+        extras = [
+            inventory.item_in_main_hand,
+            inventory.item_in_off_hand,
+            inventory.helmet,
+            inventory.chestplate,
+            inventory.leggings,
+            inventory.boots,
+        ]
+
+        for item in all_slots + extras:
+            if item is not None:
+                player.dimension.drop_item(location, item)
+
+        inventory.clear()
 
     @event_handler
     def on_offender_join(self, event: PlayerJoinEvent):
@@ -74,13 +96,4 @@ class CombatlogPlugin(Plugin):
 
         player = event.player
 
-        player.health = 0
-    
-    @event_handler
-    def on_offender_death(self, event: PlayerDeathEvent):
-        if not event.player in self.offenders:
-            return
-        
-        # Strangely, mutating death messages (or messages in PlayerChatEvent) doesn't work.
-        # I'll look into it soon.
-        event.death_message = f"{event.player.name} died to combatlogging"
+        player.send_message(f"{cf.RED}Because you combatlogged, your inventory was cleared and the items were dropped on the floor!!")
