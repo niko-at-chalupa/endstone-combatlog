@@ -15,6 +15,7 @@ from typing import Any
 class CombatlogConfig(BaseModel):
     timer_ceiling: int
     addend_per_attack: int
+    messages: dict[str, str]
 
 class CombatlogPlugin(Plugin):
     api_version = "0.11"
@@ -47,14 +48,19 @@ class CombatlogPlugin(Plugin):
             if timer <= 0:
                 self.players_in_combat.remove(player)
                 self.combat_timers.pop(player)
+                player.send_toast(self.config.messages.get("exit_combat_title", "exit combat message"), self.config.messages.get("exit_combat_description", "exit combat description"))
+
 
     @event_handler
     def on_player_attack(self, event: ActorDamageEvent):
-        if not isinstance(event.actor, Player) or not isinstance(event.damage_source.actor, Player):
+        if not isinstance(event.damage_source.actor, Player):
             return
 
         player = event.actor
         attacker = event.damage_source.actor
+
+        if not player in self.players_in_combat:
+            attacker.send_toast(self.config.messages.get("enter_combat_title", "enter combat message"), self.config.messages.get("enter_combat_description", "enter combat description"))
 
         # Even if the player the attacker attacks dies instantly upon their hit, we still put
         # them in combat. They're participating in PvP, that's clear to us.
@@ -107,7 +113,7 @@ class CombatlogPlugin(Plugin):
 
         player = event.player
 
-        player.send_message(f"{cf.RED}Because you combatlogged, your inventory was cleared and the items were dropped on the floor!!")
+        player.send_message(self.config.messages.get("combatlog_rejoin_message", "combatlog rejoin message"))
 
     def _load_config(self) -> CombatlogConfig:
         folder = Path(self.data_folder)
@@ -117,10 +123,17 @@ class CombatlogPlugin(Plugin):
         yml = YAML()
         yml.version = (1, 2)
         yml.preserve_quotes = False
+        yml.width = 4096
         
         defaults = [
             ("timer_ceiling", 15, "Maximum value the timer can be at, and the value the timer will be set to for the original attack"),
             ("addend_per_attack", 10, "Added value to the timer after initial attack (the timer will never go above timer_ceiling, still)"),
+
+            ("messages.combatlog_rejoin_message", "§cBecause you combatlogged, your inventory was cleared and the items were dropped on the floor!!", "Message shown in chat upon player rejoin after combatlogging"),
+            ("messages.enter_combat_title", "You are now in combat!", "Toast title that appears when players engage in PvP"),
+            ("messages.enter_combat_description", "Do not quit the game! Otherwise, you will drop all of your items!", "Toast content (i.e., description) that appears when players engage in PvP"),
+            ("messages.exit_combat_title", "You are no longer in combat.", "Toast title that appears when players are no longer in PvP"),
+            ("messages.exit_combat_description", "You're free to quit the game.", "Toast content (i.e., description) that appears when players are no longer in PvP"),
         ]
         
         if cfg_path.exists():
