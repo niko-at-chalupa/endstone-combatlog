@@ -26,7 +26,7 @@ class CombatlogPlugin(Plugin):
 
         self._config = self._load_config()
 
-        self.players_in_combat: list[str] = []
+        self.players_in_combat: set[str] = set()
         self.combat_timers: dict[str, int] = {}
         self.offenders: list[str] = [] # XUIDs, simpler
 
@@ -42,9 +42,7 @@ class CombatlogPlugin(Plugin):
         return timer
 
     def on_twenty_tick_interval(self):
-        # [:] has us looping in a copy rather than the list itself.
-        # Thank you to some youtube short for teaching me this
-        for xuid in self.players_in_combat[:]:
+        for xuid in self.players_in_combat.copy():
             timer = self.get_timer(xuid)
             timer -= 1
             
@@ -72,12 +70,12 @@ class CombatlogPlugin(Plugin):
         player = event.actor
         attacker = event.damage_source.actor
 
-        if not player in self.players_in_combat:
+        if not attacker in self.players_in_combat:
             attacker.send_toast(self.config.messages.get("enter_combat_title", "enter combat message"), self.config.messages.get("enter_combat_description", "enter combat description"))
 
         # Even if the player the attacker attacks dies instantly upon their hit, we still put
         # them in combat. They're participating in PvP, that's clear to us.
-        self.players_in_combat.append(attacker.xuid)
+        self.players_in_combat.add(attacker.xuid)
 
         timer = self.get_timer(attacker.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
