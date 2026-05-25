@@ -1,3 +1,4 @@
+from numpy import ceil
 from pkginfo.commandline import Base
 from endstone import Player
 from sys import api_version
@@ -6,6 +7,10 @@ from endstone.event import event_handler, ActorDamageEvent, PlayerJoinEvent, Pla
 from endstone import ColorFormat as cf
 import math
 from pydantic import BaseModel
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
+from pathlib import Path
+from typing import Any
 
 class CombatlogConfig(BaseModel):
     timer_ceiling: int
@@ -18,8 +23,7 @@ class CombatlogPlugin(Plugin):
     def on_enable(self):
         self.register_events(self)
 
-        temporary_config = {"timer_ceiling": 15, "addend_per_attack": 15}
-        self._config = CombatlogConfig(**temporary_config)
+        self._config = self._load_config()
 
         self.players_in_combat: list[Player] = []
         self.combat_timers: dict[Player, int] = {}
@@ -27,11 +31,13 @@ class CombatlogPlugin(Plugin):
 
         self.server.scheduler.run_task(self, self.on_twenty_tick_interval, period=20)
 
+        self.logger.info("If you want to reset the config, delete it and reload the plugin.")
+
     def get_timer(self, player: Player) -> int:
         timer = self.combat_timers.get(player)
         if not timer:
-            self.combat_timers[player] = self._config.timer_ceiling
-            timer = self.combat_timers.get(player, self._config.timer_ceiling)
+            self.combat_timers[player] = self.config.timer_ceiling
+            timer = self.combat_timers.get(player, self.config.timer_ceiling)
         return timer
 
     def on_twenty_tick_interval(self):
@@ -53,8 +59,13 @@ class CombatlogPlugin(Plugin):
         # Even if the player the attacker attacks dies instantly upon their hit, we still put
         # them in combat. They're participating in PvP, that's clear to us.
         self.players_in_combat.append(attacker)
-        # Initialize the timer this way--it's simpler (I think?).
-        self.get_timer(attacker)
+
+        timer = self.get_timer(attacker)
+        timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
+
+    @property
+    def config(self) -> CombatlogConfig:
+        return self._config
 
     @event_handler
     def on_combatlog(self, event: PlayerQuitEvent):
@@ -97,3 +108,50 @@ class CombatlogPlugin(Plugin):
         player = event.player
 
         player.send_message(f"{cf.RED}Because you combatlogged, your inventory was cleared and the items were dropped on the floor!!")
+
+    def _load_config(self) -> CombatlogConfig:
+        folder = Path(self.data_folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        cfg_path = folder / "config.yml"
+        
+        yml = YAML()
+        yml.version = (1, 2)
+        yml.preserve_quotes = False
+        
+        defaults = [
+            ("timer_ceiling", 15, "Maximum value the timer can be at, and the value the timer will be set to for the original attack"),
+            ("addend_per_attack", 10, "Added value to the timer after initial attack (the timer will never go above timer_ceiling, still)"),
+        ]
+        
+        if cfg_path.exists():
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                existing = yml.load(f)
+            if not isinstance(existing, CommentedMap):
+                existing = CommentedMap(existing or {})
+        else:
+            existing = CommentedMap()
+
+        for key, default, comment in defaults:
+            keys = key.split(".")
+            current = existing
+            for i, k in enumerate(keys[:-1]):
+                if k not in current:
+                    current[k] = CommentedMap()
+                current = current[k]
+            
+            if keys[-1] not in current:
+                current[keys[-1]] = default
+                current.yaml_add_eol_comment(comment, keys[-1])
+
+        with open(cfg_path, "w", encoding="utf-8") as f:
+            yml.dump(existing, f)
+
+        config_dict = self._commented_map_to_dict(existing)
+        return CombatlogConfig(**config_dict)
+
+    def _commented_map_to_dict(self, data: Any) -> Any:
+        if isinstance(data, CommentedMap):
+            return {k: self._commented_map_to_dict(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._commented_map_to_dict(v) for v in data]
+        return data
