@@ -64,7 +64,7 @@ class CombatlogPlugin(Plugin):
 
     @event_handler
     def on_player_attack(self, event: ActorDamageEvent):
-        if not isinstance(event.damage_source.actor, Player):
+        if not isinstance(event.actor, Player) or not isinstance(event.damage_source.actor, Player):
             return
 
         player = event.actor
@@ -78,6 +78,15 @@ class CombatlogPlugin(Plugin):
         self.players_in_combat.add(attacker.xuid)
 
         timer = self.get_timer(attacker.xuid)
+        timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
+
+        # Do the same thing again, but for the player who got hit.
+        if not player in self.players_in_combat:
+            player.send_toast(self.config.messages.get("enter_combat_title", "enter combat message"), self.config.messages.get("enter_combat_description", "enter combat description"))
+
+        self.players_in_combat.add(player.xuid)
+
+        timer = self.get_timer(player.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
 
     @property
