@@ -43,7 +43,7 @@ class CombatlogPlugin(Plugin):
 
     def on_twenty_tick_interval(self):
         # [:] has us looping in a copy rather than the list itself.
-        # Thank you to some youtbue short for teaching me this
+        # Thank you to some youtube short for teaching me this
         for xuid in self.players_in_combat[:]:
             timer = self.get_timer(xuid)
             timer -= 1
