@@ -11,6 +11,7 @@ authors = [
 ]
 dependencies = [
     "endstone",
+    "pydantic",
 ]
 
 [project.entry-points."endstone"]
