@@ -114,7 +114,7 @@ class CombatlogPlugin(Plugin):
 
     @event_handler
     def on_combatlog(self, event: PlayerQuitEvent):
-        if not event.player in self.players_in_combat:
+        if not event.player.xuid in self.players_in_combat:
             return
         
         player = event.player
