@@ -106,7 +106,7 @@ class CombatlogPlugin(Plugin):
 
         timer = self.get_timer(player.xuid)
         timer = min(timer+self.config.addend_per_attack, self.config.timer_ceiling)
-        self.combat_timers[attacker.xuid] = timer
+        self.combat_timers[player.xuid] = timer
 
     @property
     def config(self) -> CombatlogConfig:
