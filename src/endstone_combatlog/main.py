@@ -12,6 +12,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from pathlib import Path
 from typing import Any
+from .etc import generate_timer_bar
 
 class CombatlogConfig(BaseModel):
     timer_ceiling: int
@@ -32,6 +33,8 @@ class CombatlogPlugin(Plugin):
         self.offenders: list[str] = [] # XUIDs, simpler
 
         self.server.scheduler.run_task(self, self.on_twenty_tick_interval, period=20)
+        self.server.scheduler.run_task(self, self.every_tick, period=1)
+
 
         self.logger.info("If you want to reset the config, delete it and reload the plugin.")
 
@@ -41,6 +44,19 @@ class CombatlogPlugin(Plugin):
             self.combat_timers[player] = self.config.timer_ceiling
             timer = self.combat_timers.get(player, self.config.timer_ceiling)
         return timer
+
+    def every_tick(self):
+        for xuid in self.players_in_combat.copy():
+            player = None
+            for p in self.server.online_players:
+                if p.xuid == xuid:
+                    player = p
+                    break
+            if player:
+                timer = self.combat_timers.get(xuid)
+                if timer:
+                    timer_bar = generate_timer_bar((timer / self.config.timer_ceiling) * 100)
+                    player.send_tip(self.config.messages.get("you_are_in_combat", "you are in combat").replace("[sword]", "").replace("[timer]", timer_bar))
 
     def on_twenty_tick_interval(self):
         for xuid in self.players_in_combat.copy():
@@ -157,6 +173,7 @@ class CombatlogPlugin(Plugin):
             ("messages.enter_combat_description", "Do not quit the game! Otherwise, you will drop all of your items!", "Toast content (i.e., description) that appears when players engage in PvP"),
             ("messages.exit_combat_title", "You are no longer in combat.", "Toast title that appears when players are no longer in PvP"),
             ("messages.exit_combat_description", "You're free to quit the game.", "Toast content (i.e., description) that appears when players are no longer in PvP"),
+            ("messages.you_are_in_combat", "[sword]You are in combat! [timer] [sword]", "Tip message while in combat. [timer] will be replaced with the timer (optional), and [sword] will be replaced with a glyph of a sword (optional)"),
         ]
         
         if cfg_path.exists():
