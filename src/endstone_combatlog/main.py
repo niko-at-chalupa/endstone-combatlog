@@ -173,7 +173,7 @@ class CombatlogPlugin(Plugin):
             ("messages.enter_combat_description", "Do not quit the game! Otherwise, you will drop all of your items!", "Toast content (i.e., description) that appears when players engage in PvP"),
             ("messages.exit_combat_title", "You are no longer in combat.", "Toast title that appears when players are no longer in PvP"),
             ("messages.exit_combat_description", "You're free to quit the game.", "Toast content (i.e., description) that appears when players are no longer in PvP"),
-            ("messages.you_are_in_combat", "[sword]You are in combat! [timer] [sword]", "Tip message while in combat. [timer] will be replaced with the timer (optional), and [sword] will be replaced with a glyph of a sword (optional)"),
+            ("messages.you_are_in_combat", "[sword] You are in combat! [timer] [sword]", "Tip message while in combat. [timer] will be replaced with the timer (optional), and [sword] will be replaced with a glyph of a sword (optional)"),
         ]
         
         if cfg_path.exists():
