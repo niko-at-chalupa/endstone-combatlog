@@ -142,7 +142,13 @@ class CombatlogPlugin(Plugin):
         for item in all_slots + extras:
             if item is not None:
                 player.dimension.drop_item(location, item)
-                item = None
+
+        # This should be the proper way to do it
+        for attr in ("item_in_main_hand", "item_in_off_hand", "helmet", "chestplate", "leggings", "boots"):
+            item = getattr(inventory, attr)
+            if item is not None:
+                player.dimension.drop_item(location, item)
+                setattr(inventory, attr, None)
 
         # Just for good measures
         inventory.clear()
