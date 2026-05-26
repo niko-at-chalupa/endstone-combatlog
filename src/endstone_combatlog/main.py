@@ -142,7 +142,9 @@ class CombatlogPlugin(Plugin):
         for item in all_slots + extras:
             if item is not None:
                 player.dimension.drop_item(location, item)
+                item = None
 
+        # Just for good measures
         inventory.clear()
 
     @event_handler
