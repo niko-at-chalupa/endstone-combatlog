@@ -147,7 +147,6 @@ class CombatlogPlugin(Plugin):
         for attr in ("item_in_main_hand", "item_in_off_hand", "helmet", "chestplate", "leggings", "boots"):
             item = getattr(inventory, attr)
             if item is not None:
-                player.dimension.drop_item(location, item)
                 setattr(inventory, attr, None)
 
         # Just for good measures
