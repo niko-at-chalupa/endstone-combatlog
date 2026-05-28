@@ -87,7 +87,7 @@ class CombatlogPlugin(Plugin):
         player = event.actor
         attacker = event.damage_source.actor
 
-        if not attacker in self.players_in_combat:
+        if not attacker.xuid in self.players_in_combat:
             attacker.send_toast(self.config.messages.get("enter_combat_title", "enter combat message"), self.config.messages.get("enter_combat_description", "enter combat description"))
 
         # Even if the player the attacker attacks dies instantly upon their hit, we still put
@@ -99,7 +99,7 @@ class CombatlogPlugin(Plugin):
         self.combat_timers[attacker.xuid] = timer
 
         # Do the same thing again, but for the player who got hit.
-        if not player in self.players_in_combat:
+        if not player.xuid in self.players_in_combat:
             player.send_toast(self.config.messages.get("enter_combat_title", "enter combat message"), self.config.messages.get("enter_combat_description", "enter combat description"))
 
         self.players_in_combat.add(player.xuid)
